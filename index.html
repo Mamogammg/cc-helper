@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lua helper</title>
+    <!-- Cargar Blockly y el generador Lua -->
+    <script src="https://unpkg.com/blockly/blockly.min.js"></script>
+    <script src="https://unpkg.com/blockly/lua_compressed"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #blocklyDiv {
+            height: 480px;
+            width: 100%;
+            border: 1px solid #ccc;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+    </style>
+    <script>
+        // Textos en español e inglés
+        const texts = {
+            es: {
+                title: "CC Helper",
+                save: "Guardar",
+                load: "Cargar",
+                generateLua: "Generar Lua",
+                generateWget: "Generar comando wget",
+                luaOutput: "Salida de Lua",
+                wgetOutput: "Comando wget",
+                selectLanguage: "Seleccionar idioma:",
+                copyButton: "Copiar!"
+            },
+            en: {
+                title: "CC Helper",
+                save: "Save",
+                load: "Load",
+                generateLua: "Generate Lua",
+                generateWget: "Generate wget command",
+                luaOutput: "Lua output",
+                wgetOutput: "Wget command",
+                selectLanguage: "Select language:",
+                copyButton: "Copy!"
+            }
+        };
+
+        // Función para cambiar el idioma según la URL
+        function changeLanguage() {
+            const params = new URLSearchParams(window.location.search);
+            const lang = params.get('lang') || 'en'; // Idioma por defecto: inglés
+
+            // Cambiar textos según el idioma
+            document.getElementById("title").innerText = texts[lang].title;
+            document.getElementById("saveButton").innerText = texts[lang].save;
+            document.getElementById("loadButton").innerText = texts[lang].load;
+            document.getElementById("generateLuaButton").innerText = texts[lang].generateLua;
+            document.getElementById("generateWgetButton").innerText = texts[lang].generateWget;
+            document.getElementById("luaOutputTitle").innerText = texts[lang].luaOutput;
+            document.getElementById("wgetOutputTitle").innerText = texts[lang].wgetOutput;
+            document.getElementById("languageLabel").innerText = texts[lang].selectLanguage;
+            for (const element of document.getElementsByClassName("copy_button")) {
+                element.innerText = texts[lang].copyButton;                
+            }
+        }
+
+        // Ejecutar la función al cargar la página
+        window.onload = changeLanguage;
+    </script>
+</head>
+<body>
+    <label for="languageSelect" id="languageLabel">Select language:</label>
+    <select id="languageSelect" onchange="update()">
+        <option value="en">English</option>
+        <option value="es">Español</option>
+    </select>
+
+    <h1 id="title">CC Helper</h1>
+    <br>
+    <button id="saveButton" onclick="save()">Save</button>
+    <button id="loadButton" onclick="load()">Load</button>
+    <div id="blocklyDiv"></div>
+    <br>
+    <button id="generateLuaButton" onclick="generateLua()">Generate Lua</button>
+    <button id="generateWgetButton" onclick="generateWget()">Generate wget command</button>
+    <h2 id="luaOutputTitle">Lua output</h2>
+    <button id="copy_code" class="copy_button">Copy!</button>
+    <pre id="output"></pre>
+    <h2 id="wgetOutputTitle">Wget command</h2>
+    <div id="copy_buttons"></div>
+    <pre id="wgetOutput"></pre>
+
+    <script>
+Blockly.Msg["CATEGORY_TURTLES"] = { "en": "Turtles", "es": "Tortugas" };
+Blockly.Msg["CATEGORY_MOVEMENT"] = { "en": "Movements", "es": "Movimientos" };
+Blockly.Msg["CATEGORY_ACTIONS"] = { "en": "Actions", "es": "Acciones" };
+Blockly.Msg["CATEGORY_COMPUTERS"] = { "en": "Computers", "es": "Ordenadores" };
+Blockly.Msg["CATEGORY_PERIPHERALS"] = { "en": "Peripherals", "es": "Periféricos" };
+Blockly.Msg["CATEGORY_OS"] = { "en": "OS", "es": "Sistema" };
+Blockly.Msg["CATEGORY_TEXT"] = { "en": "Text", "es": "Texto" };
+Blockly.Msg["CATEGORY_LISTS"] = { "en": "Lists", "es": "Lista" };
+Blockly.Msg["CATEGORY_DICTIONARY"] = { "en": "Dictionary", "es": "Diccionarios" };
+Blockly.Msg["CATEGORY_CONTROL"] = { "en": "Control", "es": "Control" };
+Blockly.Msg["CATEGORY_LOGIC"] = { "en": "Logic", "es": "Lógica" };
+Blockly.Msg["CATEGORY_MATHS"] = { "en": "Maths", "es": "Matemáticas" };
+Blockly.Msg["CATEGORY_VARIABLES"] = { "en": "Variables", "es": "Variables" };
+Blockly.Msg["CATEGORY_PROCEDURES"] = { "en": "Procedures", "es": "Funciones" };
+
+Blockly.Msg["MOVE_FORWARD"] = { "en": "move forward", "es": "mover adelante" };
+Blockly.Msg["MOVE_BACK"] = { "en": "move back", "es": "mover atrás" };
+Blockly.Msg["MOVE_UP"] = { "en": "move up", "es": "mover arriba" };
+Blockly.Msg["MOVE_DOWN"] = { "en": "move down", "es": "mover abajo" };
+Blockly.Msg["TURN_LEFT"] = { "en": "turn left", "es": "girar a la izquierda" };
+Blockly.Msg["TURN_RIGHT"] = { "en": "turn right", "es": "girar a la derecha" };
+
+Blockly.Msg["DIG"] = { "en": "dig %1", "es": "excavar %1" };
+Blockly.Msg["PLACE"] = { "en": "place %1", "es": "colocar bloque %1" };
+Blockly.Msg["DROP"] = { "en": "drop %1", "es": "soltar bloque %1" };
+Blockly.Msg["ATTACK"] = { "en": "attack", "es": "atacar" };
+Blockly.Msg["SELECT"] = { "en": "select %1", "es": "seleccionar %1" };
+
+Blockly.Msg["DICT_CREATE_EMPTY"] = { "en": "empty dictionary", "es": "diccionario vacío" };
+Blockly.Msg["DICT_CREATE_WITH"] = { "en": "dictionary with %1", "es": "diccionario con %1" };
+Blockly.Msg["DICT_GET"] = { "en": "get value of key %1 in dictionary %2", "es": "obtener valor de la clave %1 en diccionario %2" };
+Blockly.Msg["DICT_SET"] = { "en": "set value %1 for key %2 in dictionary %3", "es": "poner valor %1 para la clave %2 en diccionario %3" };
+
+Blockly.Msg["WRAP"] = { "en": "wrap peripheral named %1", "es": "envolver periférico nombre %1" };
+Blockly.Msg["FIND"] = { "en": "find peripheral type %1 name %3 object %4\nfilter %2", "es": "buscar periférico tipo %1 nombre %3 objeto %4\nfiltro %2" };
+Blockly.Msg["RETURN"] = { "en": "return %1", "es": "devolver %1" };
+Blockly.Msg["GET_NAME"] = { "en": "get name of peripheral %1", "es": "obtener nombre de periférico %1" };
+Blockly.Msg["CALL"] = { "en": "call name %1 method %2 arguments %3", "es": "llamar a nombre %1 método %2 argumentos %3" };
+Blockly.Msg["PLAY_NOTE"] = { "en": "play note instrument %2 volume %3 pitch %4 on speaker %1", "es": "reproducir nota instrumento %2 volumen %3 tono %4 en altavoz %1" };
+Blockly.Msg["PLAY_SOUND"] = { "en": "play sound name %2 volume %3 pitch %4 on speaker %1", "es": "reproducir sonido nombre %2 volumen %3 tono %4 en altavoz %1" };
+Blockly.Msg["STOP"] = { "en": "stop speaker %1", "es": "parar altavoz %1" };
+Blockly.Msg["OPEN"] = { "en": "open channel %2 on modem %1", "es": "abrir canal %2 en módem %1" };
+Blockly.Msg["CLOSE"] = { "en": "close channel %2 on modem %1", "es": "cerrar canal %2 en módem %1" };
+Blockly.Msg["IS_WIRELESS"] = { "en": "is modem %1 wireless", "es": "es módem %1 inalámbrico" };
+Blockly.Msg["TRANSMIT"] = { "en": "transmit message %4 on channel %2 receive on channel %3 on modem %1", "es": "transmitir mensaje %4 por canal %2 recibir por canal %3 en módem %1" };
+Blockly.Msg["GPS"] = { "en": "set %1 %2 %3 to gps position", "es": "establecer %1 %2 %3 en la posición del gps" };
+Blockly.Msg["WRITE"] = { "en": "write message %2 on monitor %1", "es": "escribir mensaje %2 en monitor %1" };
+Blockly.Msg["SIZE_INVENTORY"] = { "en": "get inventory size %1", "es": "obtener tamaño de inventario %1" };
+Blockly.Msg["LIST_ITEMS"] = { "en": "get items from inventory %1", "es": "obtener items de inventario %1" };
+Blockly.Msg["ITEM_DETAIL"] = { "en": "get item details in slot %2 from inventory %1", "es": "obtener detalles del item en slot %2 del inventario %1" };
+Blockly.Msg["ITEM_LIMIT"] = { "en": "item limit in slot %2 from inventory %1", "es": "límite de items en el slot %2 del inventario %1" };
+Blockly.Msg["TRANSFER"] = { "en": "transfer items from inventory %1 to inventory name %2 from slot %3 limit %4 to slot %5", "es": "transferir items de inventario %1 a inventario nombre %2 desde slot %3 límite %4 a slot %5" };
+
+Blockly.Msg["EVENT_KEY"] = { "en": "set %1 %2 %3 in key event", "es": "establecer %1 %2 %3 en evento tecla" };
+Blockly.Msg["EVENT_KEY_UP"] = { "en": "set %1 %2 in key up event", "es": "establecer %1 %2 en evento tecla soltada" };
+Blockly.Msg["EVENT_MODEM_MESSAGE"] = { "en": "set %1 %2 %3 %4 %5 %6 in modem message event", "es": "establecer %1 %2 %3 %4 %5 %6 en evento mensaje de módem" };
+Blockly.Msg["PARALLEL"] = { "en": "run %1 at the same time as %2", "es": "correr %1 a la vez que %2" };
+Blockly.Msg["SLEEP"] = { "en": "wait %1 seconds", "es": "esperar %1 segundos" };
+Blockly.Msg["KEY_GET_NAME"] = { "en": "get key name %1", "es": "obtener nombre de tecla %1" };
+Blockly.Msg["KEY_LETTER"] = { "en": "key %1", "es": "tecla %1" };
+Blockly.Msg["CUSTOM"] = { "en": "execute code %1", "es": "ejecutar código %1" };
+
+Blockly.Msg["forward"] = { "en": "forward", "es": "adelante" };
+Blockly.Msg["up"] = { "en": "up", "es": "arriba" };
+Blockly.Msg["down"] = { "en": "down", "es": "abajo" };
+Blockly.Msg["object"] = { "en": "object", "es": "objeto" };
+Blockly.Msg["name"] = { "en": "name", "es": "nombre" };
+Blockly.Msg["event"] = { "en": "event", "es": "evento" };
+Blockly.Msg["key"] = { "en": "key", "es": "tecla" };
+Blockly.Msg["held"] = { "en": "held", "es": "mantenida" };
+Blockly.Msg["side"] = { "en": "side", "es": "lado" };
+Blockly.Msg["channel"] = { "en": "channel", "es": "canal" };
+Blockly.Msg["reply_channel"] = { "en": "reply channel", "es": "canal respuesta" };
+Blockly.Msg["message"] = { "en": "message", "es": "mensaje" };
+Blockly.Msg["distance"] = { "en": "distance", "es": "distancia" };
+
+Blockly.Msg["space"] = { "en": "space", "es": "espacio" };
+Blockly.Msg["apostrophe"] = { "en": "apostrophe", "es": "apóstrofe" };
+Blockly.Msg["comma"] = { "en": "comma", "es": "coma" };
+Blockly.Msg["minus"] = { "en": "minus", "es": "menos" };
+Blockly.Msg["period"] = { "en": "period", "es": "punto" };
+Blockly.Msg["slash"] = { "en": "slash", "es": "barra" };
+Blockly.Msg["zero"] = { "en": "zero", "es": "cero" };
+Blockly.Msg["one"] = { "en": "one", "es": "uno" };
+Blockly.Msg["two"] = { "en": "two", "es": "dos" };
+Blockly.Msg["three"] = { "en": "three", "es": "tres" };
+Blockly.Msg["four"] = { "en": "four", "es": "cuatro" };
+Blockly.Msg["five"] = { "en": "five", "es": "cinco" };
+Blockly.Msg["six"] = { "en": "six", "es": "seis" };
+Blockly.Msg["seven"] = { "en": "seven", "es": "siete" };
+Blockly.Msg["eight"] = { "en": "eight", "es": "ocho" };
+Blockly.Msg["nine"] = { "en": "nine", "es": "nueve" };
+Blockly.Msg["semicolon"] = { "en": "semicolon", "es": "punto y coma" };
+Blockly.Msg["equals"] = { "en": "equals", "es": "igual" };
+Blockly.Msg["a"] = { "en": "a", "es": "a" };
+Blockly.Msg["b"] = { "en": "b", "es": "b" };
+Blockly.Msg["c"] = { "en": "c", "es": "c" };
+Blockly.Msg["d"] = { "en": "d", "es": "d" };
+Blockly.Msg["e"] = { "en": "e", "es": "e" };
+Blockly.Msg["f"] = { "en": "f", "es": "f" };
+Blockly.Msg["g"] = { "en": "g", "es": "g" };
+Blockly.Msg["h"] = { "en": "h", "es": "h" };
+Blockly.Msg["i"] = { "en": "i", "es": "i" };
+Blockly.Msg["j"] = { "en": "j", "es": "j" };
+Blockly.Msg["k"] = { "en": "k", "es": "k" };
+Blockly.Msg["l"] = { "en": "l", "es": "l" };
+Blockly.Msg["m"] = { "en": "m", "es": "m" };
+Blockly.Msg["n"] = { "en": "n", "es": "n" };
+Blockly.Msg["o"] = { "en": "o", "es": "o" };
+Blockly.Msg["p"] = { "en": "p", "es": "p" };
+Blockly.Msg["q"] = { "en": "q", "es": "q" };
+Blockly.Msg["r"] = { "en": "r", "es": "r" };
+Blockly.Msg["s"] = { "en": "s", "es": "s" };
+Blockly.Msg["t"] = { "en": "t", "es": "t" };
+Blockly.Msg["u"] = { "en": "u", "es": "u" };
+Blockly.Msg["v"] = { "en": "v", "es": "v" };
+Blockly.Msg["w"] = { "en": "w", "es": "w" };
+Blockly.Msg["x"] = { "en": "x", "es": "x" };
+Blockly.Msg["y"] = { "en": "y", "es": "y" };
+Blockly.Msg["z"] = { "en": "z", "es": "z" };
+Blockly.Msg["leftBracket"] = { "en": "leftBracket", "es": "corchete izquierdo" };
+Blockly.Msg["backslash"] = { "en": "backslash", "es": "barra invertida" };
+Blockly.Msg["rightBracket"] = { "en": "rightBracket", "es": "corchete derecho" };
+Blockly.Msg["grave"] = { "en": "grave", "es": "acento grave" };
+Blockly.Msg["enter"] = { "en": "enter", "es": "enter" };
+Blockly.Msg["tab"] = { "en": "tab", "es": "tabulador" };
+Blockly.Msg["backspace"] = { "en": "backspace", "es": "retroceso" };
+Blockly.Msg["insert"] = { "en": "insert", "es": "insertar" };
+Blockly.Msg["delete"] = { "en": "delete", "es": "suprimir" };
+Blockly.Msg["right"] = { "en": "right", "es": "derecha" };
+Blockly.Msg["left"] = { "en": "left", "es": "izquierda" };
+Blockly.Msg["down"] = { "en": "down", "es": "abajo" };
+Blockly.Msg["up"] = { "en": "up", "es": "arriba" };
+Blockly.Msg["pageUp"] = { "en": "pageUp", "es": "re pág" };
+Blockly.Msg["pageDown"] = { "en": "pageDown", "es": "av pág" };
+Blockly.Msg["home"] = { "en": "home", "es": "inicio" };
+Blockly.Msg["end"] = { "en": "end", "es": "fin" };
+Blockly.Msg["capsLock"] = { "en": "capsLock", "es": "bloq mayús" };
+Blockly.Msg["scrollLock"] = { "en": "scrollLock", "es": "bloq despl" };
+Blockly.Msg["numLock"] = { "en": "numLock", "es": "bloq num" };
+Blockly.Msg["printScreen"] = { "en": "printScreen", "es": "imprimir pantalla" };
+Blockly.Msg["pause"] = { "en": "pause", "es": "pausa" };
+Blockly.Msg["f1"] = { "en": "f1", "es": "f1" };
+Blockly.Msg["f2"] = { "en": "f2", "es": "f2" };
+Blockly.Msg["f3"] = { "en": "f3", "es": "f3" };
+Blockly.Msg["f4"] = { "en": "f4", "es": "f4" };
+Blockly.Msg["f5"] = { "en": "f5", "es": "f5" };
+Blockly.Msg["f6"] = { "en": "f6", "es": "f6" };
+Blockly.Msg["f7"] = { "en": "f7", "es": "f7" };
+Blockly.Msg["f8"] = { "en": "f8", "es": "f8" };
+Blockly.Msg["f9"] = { "en": "f9", "es": "f9" };
+Blockly.Msg["f10"] = { "en": "f10", "es": "f10" };
+Blockly.Msg["f11"] = { "en": "f11", "es": "f11" };
+Blockly.Msg["f12"] = { "en": "f12", "es": "f12" };
+Blockly.Msg["f13"] = { "en": "f13", "es": "f13" };
+Blockly.Msg["f14"] = { "en": "f14", "es": "f14" };
+Blockly.Msg["f15"] = { "en": "f15", "es": "f15" };
+Blockly.Msg["f16"] = { "en": "f16", "es": "f16" };
+Blockly.Msg["f17"] = { "en": "f17", "es": "f17" };
+Blockly.Msg["f18"] = { "en": "f18", "es": "f18" };
+Blockly.Msg["f19"] = { "en": "f19", "es": "f19" };
+Blockly.Msg["f20"] = { "en": "f20", "es": "f20" };
+Blockly.Msg["f21"] = { "en": "f21", "es": "f21" };
+Blockly.Msg["f22"] = { "en": "f22", "es": "f22" };
+Blockly.Msg["f23"] = { "en": "f23", "es": "f23" };
+Blockly.Msg["f24"] = { "en": "f24", "es": "f24" };
+Blockly.Msg["f25"] = { "en": "f25", "es": "f25" };
+Blockly.Msg["numPad0"] = { "en": "numPad0", "es": "teclado numérico 0" };
+Blockly.Msg["numPad1"] = { "en": "numPad1", "es": "teclado numérico 1" };
+Blockly.Msg["numPad2"] = { "en": "numPad2", "es": "teclado numérico 2" };
+Blockly.Msg["numPad3"] = { "en": "numPad3", "es": "teclado numérico 3" };
+Blockly.Msg["numPad4"] = { "en": "numPad4", "es": "teclado numérico 4" };
+Blockly.Msg["numPad5"] = { "en": "numPad5", "es": "teclado numérico 5" };
+Blockly.Msg["numPad6"] = { "en": "numPad6", "es": "teclado numérico 6" };
+Blockly.Msg["numPad7"] = { "en": "numPad7", "es": "teclado numérico 7" };
+Blockly.Msg["numPad8"] = { "en": "numPad8", "es": "teclado numérico 8" };
+Blockly.Msg["numPad9"] = { "en": "numPad9", "es": "teclado numérico 9" };
+Blockly.Msg["numPadDecimal"] = { "en": "numPadDecimal", "es": "decimal teclado numérico" };
+Blockly.Msg["numPadDivide"] = { "en": "numPadDivide", "es": "dividir teclado numérico" };
+Blockly.Msg["numPadMultiply"] = { "en": "numPadMultiply", "es": "multiplicar teclado numérico" };
+Blockly.Msg["numPadSubtract"] = { "en": "numPadSubtract", "es": "restar teclado numérico" };
+Blockly.Msg["numPadAdd"] = { "en": "numPadAdd", "es": "sumar teclado numérico" };
+Blockly.Msg["numPadEnter"] = { "en": "numPadEnter", "es": "enter teclado numérico" };
+Blockly.Msg["numPadEqual"] = { "en": "numPadEqual", "es": "igual teclado numérico" };
+Blockly.Msg["leftShift"] = { "en": "leftShift", "es": "shift izquierdo" };
+Blockly.Msg["leftCtrl"] = { "en": "leftCtrl", "es": "control izquierdo" };
+Blockly.Msg["leftAlt"] = { "en": "leftAlt", "es": "alt izquierdo" };
+Blockly.Msg["leftSuper"] = { "en": "leftSuper", "es": "super izquierdo" };
+Blockly.Msg["rightShift"] = { "en": "rightShift", "es": "shift derecho" };
+Blockly.Msg["rightCtrl"] = { "en": "rightCtrl", "es": "control derecho" };
+Blockly.Msg["rightAlt"] = { "en": "rightAlt", "es": "alt derecho" };
+
+
+        // Función para generar el toolbox dinámico
+        function generateToolbox(lang) {
+            return `
+                <xml id="toolbox" xmlns="https://developers.google.com/blockly/xml" style="display: none;">
+        <category name="${Blockly.Msg["CATEGORY_TURTLES"][lang]}">
+            <!-- Categoría de Tortugas — Movimientos -->
+            <category name="${Blockly.Msg["CATEGORY_MOVEMENT"][lang]}">
+                <block type="move_forward"></block>
+                <block type="move_back"></block>
+                <block type="move_up"></block>
+                <block type="move_down"></block>
+                <block type="turn_left"></block>
+                <block type="turn_right"></block>
+            </category>
+        
+            <!-- Categoría de Tortugas — Acciones -->
+            <category name="${Blockly.Msg["CATEGORY_ACTIONS"][lang]}">
+                <block type="dig"></block>
+                <block type="place"></block>
+                <block type="drop"></block>
+                <block type="attack"></block>
+                <block type="select"></block>
+            </category>
+
+        </category>
+
+        <sep gap="8"></sep>
+        
+        <category name="${Blockly.Msg["CATEGORY_COMPUTERS"][lang]}">
+            <!-- Categoría de Ordenadores — Periféricos -->
+            <category name="${Blockly.Msg["CATEGORY_PERIPHERALS"][lang]}">
+                <block type="wrap"></block>
+                <block type="find"></block>
+                <block type="get_name"></block>
+                <block type="call"></block>
+                <sep gap="56"></sep>
+                <block type="play_note"></block>
+                <block type="play_sound"></block>
+                <block type="stop"></block>
+                <sep gap="56"></sep>
+                <block type="open"></block>
+                <block type="close"></block>
+                <block type="is_wireless"></block>
+                <block type="transmit"></block>
+                <block type="gps"></block>
+                <sep gap="56"></sep>
+                <block type="write"></block>
+                <sep gap="56"></sep>
+                <block type="size_inventory"></block>
+                <block type="list_items"></block>
+                <block type="item_detail"></block>
+                <block type="item_limit"></block>
+                <block type="transfer"></block>
+            </category>
+
+            <!-- Categoría de Ordenadores — Sistema -->
+            <category name="${Blockly.Msg["CATEGORY_OS"][lang]}">
+                <block type="event_key"></block>
+                <block type="event_key_up"></block>
+                <block type="event_modem_message"></block>
+                <sep gap="56"></sep>
+                <block type="parallel"></block>
+                <block type="sleep"></block>
+                <sep gap="56"></sep>
+                <block type="key_get_name"></block>
+                <block type="key_letter"></block>
+            </category>
+
+        </category>
+
+        <sep gap="8"></sep>
+        
+        <!-- Categoría de Texto -->
+        <category name="${Blockly.Msg["CATEGORY_TEXT"][lang]}">
+            <block type="text"></block>
+            <block type="text_print"></block>
+            <block type="text_join"></block>
+            <block type="text_charAt"></block>
+            <block type="text_length"></block>
+            <block type="text_getSubstring"></block>
+            <block type="text_append"></block>
+        </category>
+        
+        <!-- Categoría de Listas -->
+        <category name="${Blockly.Msg["CATEGORY_LISTS"][lang]}">
+            <block type="lists_create_empty"></block>
+            <block type="lists_create_with"></block>
+            <block type="lists_indexOf"></block>
+            <block type="lists_getIndex"></block>
+            <block type="lists_setIndex"></block>
+            <block type="lists_length"></block>
+            <block type="lists_sort"></block>
+            <block type="lists_split"></block>
+        </category>
+        
+        <!-- Categoría de Diccionarios -->
+        <category name="${Blockly.Msg["CATEGORY_DICTIONARY"][lang]}">
+            <block type="dict_create_empty"></block>
+            <block type="dict_create_with"></block>
+            <block type="dict_get"></block>
+            <block type="dict_set"></block>
+        </category>
+        
+        <!-- Categoría de Control -->
+        <category name="${Blockly.Msg["CATEGORY_CONTROL"][lang]}">
+            <block type="controls_if"></block>
+            <block type="controls_repeat_ext">
+                <value name="TIMES">
+                    <shadow type="math_number">
+                        <field name="NUM">5</field>
+                    </shadow>
+                </value>
+            </block>
+            <block type="controls_whileUntil"></block>
+            <block type="controls_forEach"></block>
+            <block type="controls_flow_statements"></block>
+            <sep gap="56"></sep>
+            <block type="custom"></block>
+        </category>
+        
+        <!-- Categoría de Lógica -->
+        <category name="${Blockly.Msg["CATEGORY_LOGIC"][lang]}">
+            <block type="logic_compare"></block>
+            <block type="logic_boolean"></block> 
+            <block type="logic_negate"></block> 
+            <block type="logic_operation"></block> 
+        </category>
+        
+        <!-- Categoría de Matemáticas -->
+        <category name="${Blockly.Msg["CATEGORY_MATHS"][lang]}">
+            <block type="math_number"></block>
+            <block type="math_arithmetic"></block>
+            <block type="math_single"></block>
+            <block type="math_random_int"></block>
+            <block type="math_round"></block>
+        </category>
+        
+        <!-- Categoría de Variables -->
+        <category name="${Blockly.Msg["CATEGORY_VARIABLES"][lang]}" custom="VARIABLE"></category>
+        
+        <!-- Categoría de Funciones -->
+        <category name="${Blockly.Msg["CATEGORY_PROCEDURES"][lang]}" custom="PROCEDURE">
+        </category>
+    </xml>
+            `;
+        }
+    </script>
+
+    <script>
+        const language = getLanguageFromURL();
+        const toolboxXML = generateToolbox(language);
+        const parser = new DOMParser();
+        const toolboxDOM = parser.parseFromString(toolboxXML, "text/xml");
+        const languageSelect = document.getElementById('languageSelect')
+        
+        languageSelect.value = language;
+
+        // Funciones auxiliares
+        function getLanguageFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('lang') || 'en';
+        }
+
+        function loadBlocklyLanguage(lang) {
+                const script = document.createElement('script');
+                script.src = `https://unpkg.com/blockly/msg/${lang}.js`;
+                //script.onload = resolve;
+                //script.onerror = () => reject(new Error(`No se pudo cargar el archivo de idioma para ${lang}`));
+                document.head.appendChild(script);
+        }
+        
+        loadBlocklyLanguage(language)
+        const workspace = Blockly.inject('blocklyDiv', {
+                renderer: "thrasos",
+                toolbox: toolboxDOM.documentElement
+            });
+        
+
+        languageSelect.addEventListener('change', (event) => {
+            const selectedLang = event.target.value;            
+            defineBlocks(selectedLang)
+
+            const newToolboxXML = generateToolbox(selectedLang);
+            const newToolboxDOM = parser.parseFromString(newToolboxXML, "text/xml");
+
+            loadBlocklyLanguage()
+            workspace.updateToolbox(newToolboxDOM.documentElement);
+
+            // Actualiza la URL
+            const currentURL = new URL(window.location.href);
+            currentURL.searchParams.set('lang', selectedLang);
+            window.history.pushState({}, '', currentURL);
+        });
+
+        function getTranslatedMessage(msgKey, lang) {
+            return Blockly.Msg[msgKey][lang];
+        }
+
+
+// Definir bloques personalizados (Tortugas)
+function defineBlocks(lang) {
+Blockly.defineBlocksWithJsonArray([
+    // Bloques de Movimiento
+    {
+        "type": "move_forward",
+        "message0": getTranslatedMessage("MOVE_FORWARD", lang),
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 160
+    },
+    {
+        "type": "move_back",
+        "message0": getTranslatedMessage("MOVE_BACK", lang),
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 160
+    },
+    {
+        "type": "move_up",
+        "message0": getTranslatedMessage("MOVE_UP", lang),
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 160
+    },
+    {
+        "type": "move_down",
+        "message0": getTranslatedMessage("MOVE_DOWN", lang),
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 160
+    },
+    {
+        "type": "turn_left",
+        "message0": getTranslatedMessage("TURN_LEFT", lang),
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 120
+    },
+    {
+        "type": "turn_right",
+        "message0": getTranslatedMessage("TURN_RIGHT", lang),
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 120
+    },
+    
+    // Bloques de Acción
+    {
+        "type": "dig",
+        "message0": getTranslatedMessage("DIG", lang),
+        "args0": [
+            {
+                "type": "field_dropdown",
+                "name": "DIRECTION",
+                "options": [
+                    [getTranslatedMessage("forward", lang), "FORWARD"],
+                    [getTranslatedMessage("up", lang), "UP"],
+                    [getTranslatedMessage("down", lang), "DOWN"]
+                ]
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 60
+    },
+    {
+        "type": "place",
+        "message0": getTranslatedMessage("PLACE", lang),
+        "args0": [
+            {
+                "type": "field_dropdown",
+                "name": "DIRECTION",
+                "options": [
+                    [getTranslatedMessage("forward", lang), "FORWARD"],
+                    [getTranslatedMessage("up", lang), "UP"],
+                    [getTranslatedMessage("down", lang), "DOWN"]
+                ]
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 60
+    },
+    {
+        "type": "drop",
+        "message0": getTranslatedMessage("DROP", lang),
+        "args0": [
+            {
+                "type": "field_dropdown",
+                "name": "DIRECTION",
+                "options": [
+                    [getTranslatedMessage("forward", lang), "FORWARD"],
+                    [getTranslatedMessage("up", lang), "UP"],
+                    [getTranslatedMessage("down", lang), "DOWN"]
+                ]
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 60
+    },
+    {
+        "type": "attack",
+        "message0": getTranslatedMessage("ATTACK", lang),
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 60
+    },
+    {
+        "type": "select",
+        "message0": getTranslatedMessage("SELECT", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "NUMBER",
+                "check": "Number"
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 60
+    },
+
+    // Bloques de Diccionarios
+    {
+        "type": "dict_create_empty",
+        "message0": getTranslatedMessage("DICT_CREATE_EMPTY", lang),
+        "output": "Object",
+        "colour": 250
+    },
+    {
+        "type": "dict_create_with",
+        "message0": getTranslatedMessage("DICT_CREATE_WITH", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "KEY_VALUE"
+            }
+        ],
+        "output": "Object",
+        "colour": 250
+    },
+    {
+        "type": "dict_get",
+        "message0": getTranslatedMessage("DICT_GET", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "KEY",
+                "check": "String"
+            },
+            {
+                "type": "input_value",
+                "name": "DICT",
+                "check": "Object"
+            }
+        ],
+        "output": "String",
+        "colour": 250
+    },
+    {
+        "type": "dict_set",
+        "message0": getTranslatedMessage("DICT_SET", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "VALUE"
+            },
+            {
+                "type": "input_value",
+                "name": "KEY",
+                "check": "String"
+            },
+            {
+                "type": "input_value",
+                "name": "DICT",
+                "check": "Object"
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 250
+    },
+
+    //Bloques de periféricos
+    {
+        "type": "wrap",
+        "message0": getTranslatedMessage("WRAP", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "NAME",
+                "check": "String"
+            }
+        ],
+        "output": "Peripheral",
+        "colour": 10
+    },
+    {
+        "type": "find",
+        "message0": getTranslatedMessage("FIND", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "TYPE",
+                "check": "String"
+            },
+            {
+                "type": "input_statement",
+                "name": "FILTER"
+            },
+            {
+                "type": "field_variable",
+                "name": "NAME",
+                "variable": getTranslatedMessage("name", lang)
+            },
+            {
+                "type": "field_variable",
+                "name": "WRAPPED",
+                "variable": getTranslatedMessage("object", lang)
+            }
+        ],
+        "message1": getTranslatedMessage("RETURN", lang),
+        "args1": [
+            {
+                "type": "input_value",
+                "name": "RETURN",
+                "align": "RIGHT"
+            }
+        ],
+        "output": "Peripheral",
+        "colour": 10,
+        "inputsInline": false
+    },
+    {
+        "type": "get_name",
+        "message0": getTranslatedMessage("GET_NAME", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "PERIPHERAL",
+                "check": "Peripheral"
+            }
+        ],
+        "output": "String",
+        "colour": 10
+    },
+    {
+        "type": "call",
+        "message0": getTranslatedMessage("CALL", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "NAME",
+                "check": "String"
+            },
+            {
+                "type": "input_value",
+                "name": "METHOD",
+                "check": "String"
+            },
+            {
+                "type": "input_value",
+                "name": "ARGS",
+                "check": "Array"
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 10
+    },
+    {
+        "type": "play_note",
+        "message0": getTranslatedMessage("PLAY_NOTE", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "SPEAKER",
+                "check": "Peripheral"
+            },
+            {
+                "type": "input_value",
+                "name": "INSTRUMENT",
+                "check": "String"
+            },
+            {
+                "type": "input_value",
+                "name": "VOLUME",
+                "check": "Number"
+            },
+            {
+                "type": "input_value",
+                "name": "PITCH",
+                "check": "Number"
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 10
+    },
+    {
+        "type": "play_sound",
+        "message0": getTranslatedMessage("PLAY_SOUND", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "SPEAKER",
+                "check": "Peripheral"
+            },
+            {
+                "type": "input_value",
+                "name": "NAME",
+                "check": "String"
+            },
+            {
+                "type": "input_value",
+                "name": "VOLUME",
+                "check": "Number"
+            },
+            {
+                "type": "input_value",
+                "name": "PITCH",
+                "check": "Number"
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 10
+    },
+    {
+        "type": "stop",
+        "message0": getTranslatedMessage("STOP", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "SPEAKER",
+                "check": "Peripheral"
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 10
+    },
+    {
+        "type": "open",
+        "message0": getTranslatedMessage("OPEN", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "MODEM",
+                "check": "Peripheral"
+            },
+            {
+                "type": "input_value",
+                "name": "CHANNEL",
+                "check": "Number"
+            },
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 10
+    },
+    {
+        "type": "close",
+        "message0": getTranslatedMessage("CLOSE", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "MODEM",
+                "check": "Peripheral"
+            },
+            {
+                "type": "input_value",
+                "name": "CHANNEL",
+                "check": "Number"
+            },
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 10
+    },
+    {
+        "type": "is_wireless",
+        "message0":getTranslatedMessage("IS_WIRELESS", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "MODEM",
+                "check": "Peripheral"
+            }
+        ],
+        "output": "Boolean",
+        "colour": 10
+    },
+    {
+        "type": "transmit",
+        "message0": getTranslatedMessage("TRANSMIT", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "MODEM",
+                "check": "Peripheral"
+            },
+            {
+                "type": "input_value",
+                "name": "SEND_CHANNEL",
+                "check": "Number"
+            },
+            {
+                "type": "input_value",
+                "name": "RECEIVE_CHANNEL",
+                "check": "Number"
+            },
+            {
+                "type": "input_value",
+                "name": "MESSAGE",
+                "check": "String"
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 10
+    },
+    {
+        "type": "gps",
+        "message0": getTranslatedMessage("GPS", lang),
+        "args0": [
+            {
+                "type": "field_variable",
+                "name": "X",
+                "variable": "x"
+            },
+            {
+                "type": "field_variable",
+                "name": "Y",
+                "variable": "y"
+            },
+            {
+                "type": "field_variable",
+                "name": "Z",
+                "variable": "z"
+            },
+            
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 10
+    },
+    {
+        "type": "write",
+        "message0": getTranslatedMessage("WRITE", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "MONITOR",
+                "check": "Peripheral"
+            },
+            {
+                "type": "input_value",
+                "name": "MESSAGE",
+                "check": "String"
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 10
+    },
+    {
+        "type": "size_inventory",
+        "message0": getTranslatedMessage("SIZE_INVENTORY", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "INVENTORY",
+                "check": "Peripheral"
+            }
+        ],
+        "output": "Number",
+        "colour": 10
+    },
+    {
+        "type": "list_items",
+        "message0": getTranslatedMessage("LIST_ITEMS", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "INVENTORY",
+                "check": "Peripheral"
+            }
+        ],
+        "output": "Number",
+        "colour": 10
+    },
+    {
+        "type": "item_detail",
+        "message0": getTranslatedMessage("ITEM_DETAIL", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "INVENTORY",
+                "check": "Peripheral"
+            },
+            {
+                "type": "input_value",
+                "name": "SLOT",
+                "check": "Number"
+            }
+        ],
+        "output": "Object",
+        "colour": 10
+    },
+    {
+        "type": "item_limit",
+        "message0": getTranslatedMessage("ITEM_LIMIT", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "INVENTORY",
+                "check": "Peripheral"
+            },
+            {
+                "type": "input_value",
+                "name": "SLOT",
+                "check": "Number"
+            }
+        ],
+        "output": "Number",
+        "colour": 10
+    },
+    {
+        "type": "transfer",
+        "message0": getTranslatedMessage("TRANSFER", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "INVENTORY",
+                "check": "String"
+            },
+            {
+                "type": "input_value",
+                "name": "NAME",
+                "check": "String"
+            },
+            {
+                "type": "input_value",
+                "name": "FROM_SLOT",
+                "check": "Number"
+            },
+            {
+                "type": "input_value",
+                "name": "LIMIT",
+                "check": "Number"
+            },
+            {
+                "type": "input_value",
+                "name": "TO_SLOT",
+                "check": "Number"
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 10
+    },
+
+    //Bloques de sistema
+    {
+        "type": "event_key",
+        "message0": getTranslatedMessage("EVENT_KEY", lang),
+        "args0": [
+            {
+                "type": "field_variable",
+                "name": "EVENT",
+                "variable": getTranslatedMessage("event", lang)
+            },
+            {
+                "type": "field_variable",
+                "name": "KEY",
+                "variable": getTranslatedMessage("key", lang)
+            },
+            {
+                "type": "field_variable",
+                "name": "HELD",
+                "variable": getTranslatedMessage("held", lang)
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 30
+    },
+    {
+        "type": "event_key_up",
+        "message0": getTranslatedMessage("EVENT_KEY_UP", lang),
+        "args0": [
+            {
+                "type": "field_variable",
+                "name": "EVENT",
+                "variable": getTranslatedMessage("event", lang)
+            },
+            {
+                "type": "field_variable",
+                "name": "KEY",
+                "variable": getTranslatedMessage("key", lang)
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 30
+    },
+    {
+        "type": "event_modem_message",
+        "message0": getTranslatedMessage("EVENT_MODEM_MESSAGE", lang),
+        "args0": [
+            {
+                "type": "field_variable",
+                "name": "EVENT",
+                "variable": getTranslatedMessage("event", lang)
+            },
+            {
+                "type": "field_variable",
+                "name": "SIDE",
+                "variable": getTranslatedMessage("side", lang)
+            },
+            {
+                "type": "field_variable",
+                "name": "CHANNEL",
+                "variable": getTranslatedMessage("channel", lang)
+            },
+            {
+                "type": "field_variable",
+                "name": "REPLY_CHANNEL",
+                "variable": getTranslatedMessage("reply_channel", lang)
+            },
+            {
+                "type": "field_variable",
+                "name": "MESSAGE",
+                "variable": getTranslatedMessage("message", lang)
+            },
+            {
+                "type": "field_variable",
+                "name": "DISTANCE",
+                "variable": getTranslatedMessage("distance", lang)
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 30
+    },
+    {
+        "type": "parallel",
+        "message0": getTranslatedMessage("PARALLEL", lang),
+        "args0": [
+            {
+                "type": "input_statement",
+                "name": "A"
+            },
+            {
+                "type": "input_statement",
+                "name": "B"
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 350
+    },
+    {
+        "type": "sleep",
+        "message0": getTranslatedMessage("SLEEP", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "SECONDS",
+                "check": "Number"
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": 350
+    },
+    {
+        "type": "key_get_name",
+        "message0": getTranslatedMessage("KEY_GET_NAME", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "KEY",
+                "check": "Number"
+            }
+        ],
+        "output": "String",
+        "colour": 90
+    },
+    {
+        "type": "key_letter",
+        "message0": getTranslatedMessage("KEY_LETTER", lang),
+        "args0": [
+            {
+                "type": "field_dropdown",
+                "name": "KEY",
+                "options": [
+    [getTranslatedMessage("space", lang), "space"],
+    [getTranslatedMessage("apostrophe", lang), "apostrophe"],
+    [getTranslatedMessage("comma", lang), "comma"],
+    [getTranslatedMessage("minus", lang), "minus"],
+    [getTranslatedMessage("period", lang), "period"],
+    [getTranslatedMessage("slash", lang), "slash"],
+    [getTranslatedMessage("zero", lang), "zero"],
+    [getTranslatedMessage("one", lang), "one"],
+    [getTranslatedMessage("two", lang), "two"],
+    [getTranslatedMessage("three", lang), "three"],
+    [getTranslatedMessage("four", lang), "four"],
+    [getTranslatedMessage("five", lang), "five"],
+    [getTranslatedMessage("six", lang), "six"],
+    [getTranslatedMessage("seven", lang), "seven"],
+    [getTranslatedMessage("eight", lang), "eight"],
+    [getTranslatedMessage("nine", lang), "nine"],
+    [getTranslatedMessage("semicolon", lang), "semicolon"],
+    [getTranslatedMessage("equals", lang), "equals"],
+    [getTranslatedMessage("a", lang), "a"],
+    [getTranslatedMessage("b", lang), "b"],
+    [getTranslatedMessage("c", lang), "c"],
+    [getTranslatedMessage("d", lang), "d"],
+    [getTranslatedMessage("e", lang), "e"],
+    [getTranslatedMessage("f", lang), "f"],
+    [getTranslatedMessage("g", lang), "g"],
+    [getTranslatedMessage("h", lang), "h"],
+    [getTranslatedMessage("i", lang), "i"],
+    [getTranslatedMessage("j", lang), "j"],
+    [getTranslatedMessage("k", lang), "k"],
+    [getTranslatedMessage("l", lang), "l"],
+    [getTranslatedMessage("m", lang), "m"],
+    [getTranslatedMessage("n", lang), "n"],
+    [getTranslatedMessage("o", lang), "o"],
+    [getTranslatedMessage("p", lang), "p"],
+    [getTranslatedMessage("q", lang), "q"],
+    [getTranslatedMessage("r", lang), "r"],
+    [getTranslatedMessage("s", lang), "s"],
+    [getTranslatedMessage("t", lang), "t"],
+    [getTranslatedMessage("u", lang), "u"],
+    [getTranslatedMessage("v", lang), "v"],
+    [getTranslatedMessage("w", lang), "w"],
+    [getTranslatedMessage("x", lang), "x"],
+    [getTranslatedMessage("y", lang), "y"],
+    [getTranslatedMessage("z", lang), "z"],
+    [getTranslatedMessage("leftBracket", lang), "leftBracket"],
+    [getTranslatedMessage("backslash", lang), "backslash"],
+    [getTranslatedMessage("rightBracket", lang), "rightBracket"],
+    [getTranslatedMessage("grave", lang), "grave"],
+    [getTranslatedMessage("enter", lang), "enter"],
+    [getTranslatedMessage("tab", lang), "tab"],
+    [getTranslatedMessage("backspace", lang), "backspace"],
+    [getTranslatedMessage("insert", lang), "insert"],
+    [getTranslatedMessage("delete", lang), "delete"],
+    [getTranslatedMessage("right", lang), "right"],
+    [getTranslatedMessage("left", lang), "left"],
+    [getTranslatedMessage("down", lang), "down"],
+    [getTranslatedMessage("up", lang), "up"],
+    [getTranslatedMessage("pageUp", lang), "pageUp"],
+    [getTranslatedMessage("pageDown", lang), "pageDown"],
+    [getTranslatedMessage("home", lang), "home"],
+    [getTranslatedMessage("end", lang), "end"],
+    [getTranslatedMessage("capsLock", lang), "capsLock"],
+    [getTranslatedMessage("scrollLock", lang), "scrollLock"],
+    [getTranslatedMessage("numLock", lang), "numLock"],
+    [getTranslatedMessage("printScreen", lang), "printScreen"],
+    [getTranslatedMessage("pause", lang), "pause"],
+    [getTranslatedMessage("f1", lang), "f1"],
+    [getTranslatedMessage("f2", lang), "f2"],
+    [getTranslatedMessage("f3", lang), "f3"],
+    [getTranslatedMessage("f4", lang), "f4"],
+    [getTranslatedMessage("f5", lang), "f5"],
+    [getTranslatedMessage("f6", lang), "f6"],
+    [getTranslatedMessage("f7", lang), "f7"],
+    [getTranslatedMessage("f8", lang), "f8"],
+    [getTranslatedMessage("f9", lang), "f9"],
+    [getTranslatedMessage("f10", lang), "f10"],
+    [getTranslatedMessage("f11", lang), "f11"],
+    [getTranslatedMessage("f12", lang), "f12"],
+    [getTranslatedMessage("f13", lang), "f13"],
+    [getTranslatedMessage("f14", lang), "f14"],
+    [getTranslatedMessage("f15", lang), "f15"],
+    [getTranslatedMessage("f16", lang), "f16"],
+    [getTranslatedMessage("f17", lang), "f17"],
+    [getTranslatedMessage("f18", lang), "f18"],
+    [getTranslatedMessage("f19", lang), "f19"],
+    [getTranslatedMessage("f20", lang), "f20"],
+    [getTranslatedMessage("f21", lang), "f21"],
+    [getTranslatedMessage("f22", lang), "f22"],
+    [getTranslatedMessage("f23", lang), "f23"],
+    [getTranslatedMessage("f24", lang), "f24"],
+    [getTranslatedMessage("f25", lang), "f25"],
+    [getTranslatedMessage("numPad0", lang), "numPad0"],
+    [getTranslatedMessage("numPad1", lang), "numPad1"],
+    [getTranslatedMessage("numPad2", lang), "numPad2"],
+    [getTranslatedMessage("numPad3", lang), "numPad3"],
+    [getTranslatedMessage("numPad4", lang), "numPad4"],
+    [getTranslatedMessage("numPad5", lang), "numPad5"],
+    [getTranslatedMessage("numPad6", lang), "numPad6"],
+    [getTranslatedMessage("numPad7", lang), "numPad7"],
+    [getTranslatedMessage("numPad8", lang), "numPad8"],
+    [getTranslatedMessage("numPad9", lang), "numPad9"],
+    [getTranslatedMessage("numPadDecimal", lang), "numPadDecimal"],
+    [getTranslatedMessage("numPadDivide", lang), "numPadDivide"],
+    [getTranslatedMessage("numPadMultiply", lang), "numPadMultiply"],
+    [getTranslatedMessage("numPadSubtract", lang), "numPadSubtract"],
+    [getTranslatedMessage("numPadAdd", lang), "numPadAdd"],
+    [getTranslatedMessage("numPadEnter", lang), "numPadEnter"],
+    [getTranslatedMessage("numPadEqual", lang), "numPadEqual"],
+    [getTranslatedMessage("leftShift", lang), "leftShift"],
+    [getTranslatedMessage("leftCtrl", lang), "leftCtrl"],
+    [getTranslatedMessage("leftAlt", lang), "leftAlt"],
+    [getTranslatedMessage("leftSuper", lang), "leftSuper"],
+    [getTranslatedMessage("rightShift", lang), "rightShift"],
+    [getTranslatedMessage("rightCtrl", lang), "rightCtrl"],
+    [getTranslatedMessage("rightAlt", lang), "rightAlt"]
+]
+            }
+        ],
+        "output": "Number",
+        "colour": 90
+    },
+    {
+        "type": "custom",
+        "message0": getTranslatedMessage("CUSTOM", lang),
+        "args0": [
+            {
+                "type": "input_value",
+                "name": "CODE",
+                "check": "String"
+            }
+        ],
+        "previousStatement": null,
+        "nextStatement": null,
+        "colour": "#888888"
+    }
+]);
+}
+
+defineBlocks(language)
+
+if (localStorage.state) Blockly.serialization.workspaces.load(JSON.parse(localStorage.state), workspace);
+
+        // Asociar bloques a funciones Lua
+        lua.luaGenerator.forBlock['move_forward'] = () => 'turtle.forward()\n';
+lua.luaGenerator.forBlock['move_back'] = () => 'turtle.back()\n';
+lua.luaGenerator.forBlock['move_up'] = () => 'turtle.up()\n';
+lua.luaGenerator.forBlock['move_down'] = () => 'turtle.down()\n';
+lua.luaGenerator.forBlock['turn_left'] = () => 'turtle.turnLeft()\n';
+lua.luaGenerator.forBlock['turn_right'] = () => 'turtle.turnRight()\n';
+
+lua.luaGenerator.forBlock['dig'] = block => {
+    const direction = block.getFieldValue('DIRECTION');
+    if (direction === 'UP') return 'turtle.digUp()\n';
+    if (direction === 'DOWN') return 'turtle.digDown()\n';
+    return 'turtle.dig()\n';
+};
+
+lua.luaGenerator.forBlock['place'] = block => {
+    const direction = block.getFieldValue('DIRECTION');
+    if (direction === 'UP') return 'turtle.placeUp()\n';
+    if (direction === 'DOWN') return 'turtle.placeDown()\n';
+    return 'turtle.place()\n';
+};
+
+lua.luaGenerator.forBlock['drop'] = block => {
+    const direction = block.getFieldValue('DIRECTION');
+    if (direction === 'UP') return 'turtle.dropUp()\n';
+    if (direction === 'DOWN') return 'turtle.dropDown()\n';
+    return 'turtle.drop()\n';
+};
+
+lua.luaGenerator.forBlock['attack'] = () => 'turtle.attack()\n';
+
+lua.luaGenerator.forBlock['select'] = block => {
+    const slot = lua.luaGenerator.valueToCode(block, 'NUMBER', lua.luaGenerator.ORDER_NONE) || "''";
+    return `turtle.select(${slot})\n`;
+};
+
+// Diccionarios
+lua.luaGenerator.forBlock['dict_create_empty'] = () => ['{}', lua.luaGenerator.ORDER_NONE];
+
+lua.luaGenerator.forBlock['dict_create_with'] = block => {
+    const itemCount = block.itemCount_;
+    const code = [];
+    for (let i = 0; i < itemCount; i++) {
+        const key = lua.luaGenerator.valueToCode(block, `KEY${i}`, lua.luaGenerator.ORDER_NONE) || 'null';
+        const value = lua.luaGenerator.valueToCode(block, `VALUE${i}`, lua.luaGenerator.ORDER_NONE) || 'null';
+        code.push(`[${key}] = ${value}`);
+    }
+    return [`{${code.join(', ')}}`, lua.luaGenerator.ORDER_NONE];
+};
+
+lua.luaGenerator.forBlock['dict_get'] = block => {
+    const dict = lua.luaGenerator.valueToCode(block, 'DICT', lua.luaGenerator.ORDER_NONE) || '{}';
+    const key = lua.luaGenerator.valueToCode(block, 'KEY', lua.luaGenerator.ORDER_NONE) || 'null';
+    return [`${dict}[${key}]`, lua.luaGenerator.ORDER_NONE];
+};
+
+lua.luaGenerator.forBlock['dict_set'] = block => {
+    const dict = lua.luaGenerator.valueToCode(block, 'DICT', lua.luaGenerator.ORDER_NONE) || '{}';
+    const key = lua.luaGenerator.valueToCode(block, 'KEY', lua.luaGenerator.ORDER_NONE) || 'null';
+    const value = lua.luaGenerator.valueToCode(block, 'VALUE', lua.luaGenerator.ORDER_NONE) || 'null';
+    return `${dict}[${key}] = ${value}\n`;
+};
+
+lua.luaGenerator.forBlock['wrap'] = block => {
+    const name = lua.luaGenerator.valueToCode(block, 'NAME', lua.luaGenerator.ORDER_NONE) || "''";
+    return [`peripheral.wrap(${name})`, lua.luaGenerator.ORDER_NONE];
+};
+
+lua.luaGenerator.forBlock['find'] = block => {
+    const type = lua.luaGenerator.valueToCode(block, 'TYPE', lua.luaGenerator.ORDER_NONE) || "''";
+    const filter = lua.luaGenerator.statementToCode(block, 'FILTER', lua.luaGenerator.ORDER_NONE) || "";
+
+    // Usar nameDB para nombres de variables válidos
+    const name = lua.luaGenerator.nameDB_.getName(
+        block.getField("NAME").getVariable().getId(),
+        Blockly.Names.NameType.VARIABLE
+    );
+    const wrapped = lua.luaGenerator.nameDB_.getName(
+        block.getField("WRAPPED").getVariable().getId(),
+        Blockly.Names.NameType.VARIABLE
+    );
+
+    const returnInput = lua.luaGenerator.valueToCode(block, 'RETURN', lua.luaGenerator.ORDER_NONE) || "";
+    return [`peripheral.find(${type}${filter || returnInput ? `, function (${name}, ${wrapped}) ${filter}${returnInput ? "return " + returnInput : ""} end` : ""})`, lua.luaGenerator.ORDER_NONE];
+};
+
+lua.luaGenerator.forBlock['get_name'] = block => {
+    const name = lua.luaGenerator.valueToCode(block, 'PERIPHERAL', lua.luaGenerator.ORDER_NONE) || "''";
+    return [`peripheral.getName(${name})`, lua.luaGenerator.ORDER_NONE];
+};
+
+
+lua.luaGenerator.forBlock['call'] = block => {
+    const name = lua.luaGenerator.valueToCode(block, 'NAME', lua.luaGenerator.ORDER_NONE) || "''";
+    const method = lua.luaGenerator.valueToCode(block, 'METHOD', lua.luaGenerator.ORDER_NONE) || "''";
+    const args = lua.luaGenerator.valueToCode(block, 'ARGS', lua.luaGenerator.ORDER_NONE) || '';
+    const jsArgs = args
+        .replace(/[{}]/g, '') // Quitar las llaves {}
+        .split(',') // Dividir por comas
+        .map(item => item.trim().replace(/["']/g, '')); // Limpiar comillas y espacios
+        console.log(args, jsArgs)
+    return `peripheral.call(${name}, ${method}${args ? ", '" + jsArgs.join("', '") + "'" : ""})\n`;
+};
+
+lua.luaGenerator.forBlock['play_note'] = block => {
+    const speaker = lua.luaGenerator.valueToCode(block, 'SPEAKER', lua.luaGenerator.ORDER_NONE) || "''";
+    const instrument = lua.luaGenerator.valueToCode(block, 'INSTRUMENT', lua.luaGenerator.ORDER_NONE) || "''";
+    const volume = lua.luaGenerator.valueToCode(block, 'VOLUME', lua.luaGenerator.ORDER_NONE) || '';
+    const pitch = lua.luaGenerator.valueToCode(block, 'PITCH', lua.luaGenerator.ORDER_NONE) || '';
+    return `${speaker}.playNote(${instrument}, ${volume}, ${pitch})\n`;
+};
+
+lua.luaGenerator.forBlock['play_sound'] = block => {
+    const speaker = lua.luaGenerator.valueToCode(block, 'SPEAKER', lua.luaGenerator.ORDER_NONE) || "''";
+    const name = lua.luaGenerator.valueToCode(block, 'NAME', lua.luaGenerator.ORDER_NONE) || "''";
+    const volume = lua.luaGenerator.valueToCode(block, 'VOLUME', lua.luaGenerator.ORDER_NONE) || '';
+    const pitch = lua.luaGenerator.valueToCode(block, 'PITCH', lua.luaGenerator.ORDER_NONE) || '';
+    return `${speaker}.playSound(${name}, ${volume}, ${pitch})\n`;
+};
+
+lua.luaGenerator.forBlock['stop'] = block => {
+    const speaker = lua.luaGenerator.valueToCode(block, 'SPEAKER', lua.luaGenerator.ORDER_NONE) || "''";
+    return `${speaker}.stop()\n`;
+};
+
+lua.luaGenerator.forBlock['open'] = block => {
+    const modem = lua.luaGenerator.valueToCode(block, 'MODEM', lua.luaGenerator.ORDER_NONE) || "''";
+    const channel = lua.luaGenerator.valueToCode(block, 'CHANNEL', lua.luaGenerator.ORDER_NONE) || "''";
+    return `${modem}.open(${channel})\n`;
+};
+
+lua.luaGenerator.forBlock['close'] = block => {
+    const modem = lua.luaGenerator.valueToCode(block, 'MODEM', lua.luaGenerator.ORDER_NONE) || "''";
+    const channel = lua.luaGenerator.valueToCode(block, 'CHANNEL', lua.luaGenerator.ORDER_NONE) || "''";
+    return `${modem}.close(${channel})\n`;
+};
+
+lua.luaGenerator.forBlock['is_wireless'] = block => {
+    const modem = lua.luaGenerator.valueToCode(block, 'MODEM', lua.luaGenerator.ORDER_NONE) || "''";
+    return [`${modem}.isWireless()`, lua.luaGenerator.ORDER_NONE];
+};
+
+lua.luaGenerator.forBlock['transmit'] = block => {
+    const modem = lua.luaGenerator.valueToCode(block, 'MODEM', lua.luaGenerator.ORDER_NONE) || "''";
+    const send_channel = lua.luaGenerator.valueToCode(block, 'SEND_CHANNEL', lua.luaGenerator.ORDER_NONE) || "0";
+    const receive_channel = lua.luaGenerator.valueToCode(block, 'RECEIVE_CHANNEL', lua.luaGenerator.ORDER_NONE) || "0";
+    const message = lua.luaGenerator.valueToCode(block, 'MESSAGE', lua.luaGenerator.ORDER_NONE) || "''";
+    return `${modem}.transmit(${send_channel}, ${receive_channel}, ${message})\n`;
+};
+
+lua.luaGenerator.forBlock['gps'] = block => {
+    // Usar nameDB para nombres de variables válidos
+    const x = lua.luaGenerator.nameDB_.getName(
+        block.getField("X").getVariable().getId(),
+        Blockly.Names.NameType.VARIABLE
+    );
+    const y = lua.luaGenerator.nameDB_.getName(
+        block.getField("Y").getVariable().getId(),
+        Blockly.Names.NameType.VARIABLE
+    );
+    const z = lua.luaGenerator.nameDB_.getName(
+        block.getField("Z").getVariable().getId(),
+        Blockly.Names.NameType.VARIABLE
+    );
+    return `local ${x}, ${y}, ${z} = gps.locate()\n`;
+};
+
+lua.luaGenerator.forBlock['write'] = block => {
+    const monitor = lua.luaGenerator.valueToCode(block, 'MONITOR', lua.luaGenerator.ORDER_NONE) || "''";
+    const message = lua.luaGenerator.valueToCode(block, 'MESSAGE', lua.luaGenerator.ORDER_NONE) || "''";
+    return `${monitor}.write(${message})\n`;
+};
+
+lua.luaGenerator.forBlock['size_inventory'] = block => {
+    const inventory = lua.luaGenerator.valueToCode(block, 'INVENTORY', lua.luaGenerator.ORDER_NONE) || "''";
+    return [`${inventory}.size()`, lua.luaGenerator.ORDER_NONE];
+};
+
+lua.luaGenerator.forBlock['list_items'] = block => {
+    const inventory = lua.luaGenerator.valueToCode(block, 'INVENTORY', lua.luaGenerator.ORDER_NONE) || "''";
+    return [`${inventory}.list()`, lua.luaGenerator.ORDER_NONE];
+};
+
+lua.luaGenerator.forBlock['item_detail'] = block => {
+    const inventory = lua.luaGenerator.valueToCode(block, 'INVENTORY', lua.luaGenerator.ORDER_NONE) || "''";
+    const slot = lua.luaGenerator.valueToCode(block, 'SLOT', lua.luaGenerator.ORDER_NONE) || "''";
+    return [`${inventory}.getItemDetail(${slot})`, lua.luaGenerator.ORDER_NONE];
+};
+
+lua.luaGenerator.forBlock['item_limit'] = block => {
+    const inventory = lua.luaGenerator.valueToCode(block, 'INVENTORY', lua.luaGenerator.ORDER_NONE) || "''";
+    const slot = lua.luaGenerator.valueToCode(block, 'SLOT', lua.luaGenerator.ORDER_NONE) || "''";
+    return [`${inventory}.getItemLimit(${slot}`, lua.luaGenerator.ORDER_NONE];
+};
+
+lua.luaGenerator.forBlock['transfer'] = block => {
+    const inventory = lua.luaGenerator.valueToCode(block, 'INVENTORY', lua.luaGenerator.ORDER_NONE) || "''";
+    const name = lua.luaGenerator.valueToCode(block, 'NAME', lua.luaGenerator.ORDER_NONE) || "''";
+    const from_slot = lua.luaGenerator.valueToCode(block, 'FROM_SLOT', lua.luaGenerator.ORDER_NONE) || "0";
+    const limit = lua.luaGenerator.valueToCode(block, 'LIMIT', lua.luaGenerator.ORDER_NONE) || "";
+    const to_slot = lua.luaGenerator.valueToCode(block, 'TO_SLOT', lua.luaGenerator.ORDER_NONE) || "";
+    return `${inventory}.pushItems(${name}, ${from_slot}${limit ? ", " + limit : ""}${to_slot ? ", " + limit : ""})\n`;
+};
+
+//Bloques de sistema
+lua.luaGenerator.forBlock['event_key'] = block => {
+    // Usar nameDB para nombres de variables válidos
+    const event = lua.luaGenerator.nameDB_.getName(
+        block.getField("EVENT").getVariable().getId(),
+        Blockly.Names.NameType.VARIABLE
+    );
+    const key = lua.luaGenerator.nameDB_.getName(
+        block.getField("KEY").getVariable().getId(),
+        Blockly.Names.NameType.VARIABLE
+    );
+    const held = lua.luaGenerator.nameDB_.getName(
+        block.getField("HELD").getVariable().getId(),
+        Blockly.Names.NameType.VARIABLE
+    );
+    return `local ${event}, ${key}, ${held} = os.pullEvent('key')\n`;
+};
+
+lua.luaGenerator.forBlock['event_key_up'] = block => {
+    // Usar nameDB para nombres de variables válidos
+    const event = lua.luaGenerator.nameDB_.getName(
+        block.getField("EVENT").getVariable().getId(),
+        Blockly.Names.NameType.VARIABLE
+    );
+    const key = lua.luaGenerator.nameDB_.getName(
+        block.getField("KEY").getVariable().getId(),
+        Blockly.Names.NameType.VARIABLE
+    );
+    return `local ${event}, ${key} = os.pullEvent('key_up')\n`;
+};
+
+lua.luaGenerator.forBlock['event_modem_message'] = block => {
+    // Usar nameDB para nombres de variables válidos
+    const event = lua.luaGenerator.nameDB_.getName(
+        block.getField("EVENT").getVariable().getId(),
+        Blockly.Names.NameType.VARIABLE
+    );
+    const side = lua.luaGenerator.nameDB_.getName(
+        block.getField("SIDE").getVariable().getId(),
+        Blockly.Names.NameType.VARIABLE
+    );
+    const channel = lua.luaGenerator.nameDB_.getName(
+        block.getField("CHANNEL").getVariable().getId(),
+        Blockly.Names.NameType.VARIABLE
+    );
+    const replyChannel = lua.luaGenerator.nameDB_.getName(
+        block.getField("REPLY_CHANNEL").getVariable().getId(),
+        Blockly.Names.NameType.VARIABLE
+    );
+    const message = lua.luaGenerator.nameDB_.getName(
+        block.getField("MESSAGE").getVariable().getId(),
+        Blockly.Names.NameType.VARIABLE
+    );
+    const distance = lua.luaGenerator.nameDB_.getName(
+        block.getField("DISTANCE").getVariable().getId(),
+        Blockly.Names.NameType.VARIABLE
+    );
+    return `local ${event}, ${side}, ${channel}, ${replyChannel}, ${message}, ${distance} = os.pullEvent('modem_message')\n`;
+};
+
+lua.luaGenerator.forBlock['parallel'] = block => {
+    const a = lua.luaGenerator.statementToCode(block, 'A', lua.luaGenerator.ORDER_NONE) || "''";
+    const b = lua.luaGenerator.statementToCode(block, 'B', lua.luaGenerator.ORDER_NONE) || "''";
+
+    // Función auxiliar para eliminar "()" solo si están al final
+    const stripParentheses = code => {
+        return code.endsWith("()") ? code.slice(0, -2) : code;
+    };
+
+    const strippedA = stripParentheses(a.trim());
+    const strippedB = stripParentheses(b.trim());
+
+    return `parallel.waitForAny(${strippedA}, ${strippedB})\n`;
+};
+
+
+lua.luaGenerator.forBlock['sleep'] = block => {
+    const seconds = lua.luaGenerator.valueToCode(block, 'SECONDS', lua.luaGenerator.ORDER_NONE) || "0";
+    return `os.sleep(${seconds})\n`;
+};
+
+lua.luaGenerator.forBlock['key_get_name'] = block => {
+    const key = lua.luaGenerator.valueToCode(block, 'KEY', lua.luaGenerator.ORDER_NONE) || "0";
+    return [`keys.getName(${key})`, lua.luaGenerator.ORDER_NONE];
+};
+
+lua.luaGenerator.forBlock['key_letter'] = block => {
+    const key = block.getFieldValue('KEY');
+    return [`keys.${key}`, lua.luaGenerator.ORDER_NONE];
+};
+
+lua.luaGenerator.forBlock['custom'] = block => {
+    const code = lua.luaGenerator.valueToCode(block, 'CODE', lua.luaGenerator.ORDER_NONE) || "''";
+    return `${code.slice(1, -1)}\n`;
+};
+
+
+        // Función para generar el código Lua
+        function generateLua() {
+            try {
+                const luaCode = lua.luaGenerator.workspaceToCode(workspace);
+                document.getElementById('output').textContent = luaCode || "-- Empty workspace";
+            } catch (error) {
+                document.getElementById('output').textContent = `Error generating Lua: ${error.message}`;
+            }
+        }
+
+        // Función para generar el comando Wget
+        function generateWget() {
+            try {
+                const luaCode = lua.luaGenerator.workspaceToCode(workspace).trim();
+                if (luaCode) {
+                    const encodedLua = encodeURIComponent(luaCode);
+                    const wgetCommand = `wget run https://utilities-virid.vercel.app/txt?t=${encodedLua}`;
+                    document.getElementById('wgetOutput').textContent = wgetCommand;
+
+                    const chunks = wgetCommand.match(/.{1,512}/g)
+                    document.getElementById("copy_buttons").replaceChildren()
+                    for (let i = 0; i < chunks.length; i++) {
+                        var button = document.createElement("button")
+                        button.innerText = texts[language].copyButton
+                        button.onclick = function() {
+                            copyWget(i)
+                        }
+                        document.getElementById("copy_buttons").appendChild(button)
+                    }
+                } else {
+                    document.getElementById('wgetOutput').textContent = "-- Empty workspace";
+                }
+            } catch (error) {
+                document.getElementById('wgetOutput').textContent = `Error generating Wget: ${error.message}`;
+            }
+        }
+
+        function save() {
+            const state = Blockly.serialization.workspaces.save(workspace);
+            console.log(state)
+            var a = document.createElement("a");
+            var file = new Blob([JSON.stringify(state)]);
+            a.href = URL.createObjectURL(file);
+            a.download = "workspace.json";
+            a.click();
+        }
+
+        function load() {
+            var input = document.createElement("input");
+            input.type = "file"
+            function readSingleFile(evt) {
+                //Retrieve the first (and only!) File from the FileList object
+                var f = evt.target.files[0]; 
+
+                if (f) {
+                    var r = new FileReader();
+                    r.onload = function(e) { 
+                        var contents = e.target.result;
+                        console.log(contents)
+                        Blockly.serialization.workspaces.load(JSON.parse(contents), workspace);
+                    }
+                    r.readAsText(f);
+
+                } else { 
+                    alert("Failed to load file");
+                }
+            }
+            input.addEventListener("change", readSingleFile)
+            input.click();
+        }
+
+        function update() {
+            const state = Blockly.serialization.workspaces.save(workspace);
+            localStorage.state = JSON.stringify(state)
+            location.search = '?lang=' + languageSelect.value
+        }
+
+        function copyLua() {
+            navigator.clipboard.writeText(document.getElementById('output').textContent)
+        }
+        
+        function copyWget(chunk) {
+            navigator.clipboard.writeText(document.getElementById('wgetOutput').textContent.match(/.{1,512}/g)[chunk])
+        }
+
+        document.getElementById("copy_code").addEventListener("click", copyLua)
+    </script>
+</body>
+</html>
